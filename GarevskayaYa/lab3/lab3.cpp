@@ -127,6 +127,34 @@ public:
         }
     }
 
+    void translateLine(string line) {
+        string word = "";
+        for (int i = 0; i <= line.length(); i++) {
+            if (line[i] == ' ' || line[i] == '\0') {
+                if (word != "") {
+                    int index = -1;
+                    for (int j = 0; j < size; j++) {
+                        if (english[j] == word) {
+                            index = j;
+                            break;
+                        }
+                    }
+                    if (index != -1) {
+                        cout << russian[index] << " ";
+                    }
+                    else {
+                        cout << "[" << word << "] ";
+                    }
+                    word = "";
+                }
+            }
+            else {
+                word = word + line[i];
+            }
+        }
+        cout << endl;
+    }
+
     void getSize() {
         cout << "Number of words in dictionary: " << size << endl;
     }
@@ -148,7 +176,6 @@ public:
     void loadFromFile(string filename) {
         ifstream file(filename);
         if (!file) {
-
             cout << "Error opening file for reading" << endl;
             return;
         }
@@ -170,7 +197,7 @@ int main() {
 
     Dictionary dict;
     int choice;
-    string word, translation, filename;
+    string word, translation, filename, line;
 
     do {
         cout << "\nMenu" << endl;
@@ -178,9 +205,10 @@ int main() {
         cout << "2. Change translation" << endl;
         cout << "3. English to Russian" << endl;
         cout << "4. Russian to English" << endl;
-        cout << "5. Show number of words" << endl;
-        cout << "6. Save to file" << endl;
-        cout << "7. Load from file" << endl;
+        cout << "5. Translate line" << endl;
+        cout << "6. Show number of words" << endl;
+        cout << "7. Save to file" << endl;
+        cout << "8. Load from file" << endl;
         cout << "0. Exit" << endl;
         cout << "Enter your choice: ";
         cin >> choice;
@@ -209,14 +237,20 @@ int main() {
             dict.rusToEng(word);
             break;
         case 5:
-            dict.getSize();
+            cout << "Enter english line: ";
+            cin.ignore();
+            getline(cin, line);
+            dict.translateLine(line);
             break;
         case 6:
+            dict.getSize();
+            break;
+        case 7:
             cout << "Enter filename: ";
             cin >> filename;
             dict.saveToFile(filename);
             break;
-        case 7:
+        case 8:
             cout << "Enter filename: ";
             cin >> filename;
             dict.loadFromFile(filename);
