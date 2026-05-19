@@ -1,6 +1,6 @@
 ﻿#include <iostream>
 #include <string>
-#include <map>
+#include <vector>
 
 using namespace std;
 
@@ -84,28 +84,58 @@ public:
 class ProcessingCenter {
 private:
     struct Client {
+        string accNum;
         string fullName;
         double salaryBalance;
         Deposit deposit;
         string password;
     };
 
-    map<string, Client> clients;
+    vector<Client> clients;
 
-    double getRateByAmountAndTerm(double amount, int termYears) const {
+    double getRate(double amount, int termMonths) const {
         string range;
         if (amount < 100000) range = "less100";
         else if (amount < 500000) range = "100_500";
         else if (amount <= 1000000) range = "500_1000";
         else range = "over1000";
 
-        map<string, double> ratesFor1Year;
-        ratesFor1Year["less100"] = 5.0;
-        ratesFor1Year["100_500"] = 6.0;
-        ratesFor1Year["500_1000"] = 6.6;
-        ratesFor1Year["over1000"] = 7.2;
+        if (range == "less100") {
+            if (termMonths == 3) return 4.5;
+            if (termMonths == 6) return 5.0;
+            if (termMonths == 12) return 5.5;
+            if (termMonths == 24) return 5.0;
+            if (termMonths == 36) return 4.5;
+        }
+        else if (range == "100_500") {
+            if (termMonths == 3) return 5.5;
+            if (termMonths == 6) return 6.0;
+            if (termMonths == 12) return 6.5;
+            if (termMonths == 24) return 6.0;
+            if (termMonths == 36) return 5.5;
+        }
+        else if (range == "500_1000") {
+            if (termMonths == 3) return 6.0;
+            if (termMonths == 6) return 6.6;
+            if (termMonths == 12) return 7.0;
+            if (termMonths == 24) return 6.5;
+            if (termMonths == 36) return 6.0;
+        }
+        else {
+            if (termMonths == 3) return 6.5;
+            if (termMonths == 6) return 7.0;
+            if (termMonths == 12) return 7.5;
+            if (termMonths == 24) return 7.0;
+            if (termMonths == 36) return 6.5;
+        }
+        return 5.0;
+    }
 
-        return ratesFor1Year[range];
+    int findClientIndex(const string& accNum) const {
+        for (size_t i = 0; i < clients.size(); i++) {
+            if (clients[i].accNum == accNum) return i;
+        }
+        return -1;
     }
 
 public:
@@ -118,49 +148,56 @@ public:
             cout << "Error: password too short (need >3 symbols).\n";
             return;
         }
+        if (findClientIndex(accNum) != -1) {
+            cout << "Error: client already exists.\n";
+            return;
+        }
         Client newClient;
+        newClient.accNum = accNum;
         newClient.fullName = name;
         newClient.salaryBalance = balance;
         newClient.password = pass;
-        clients[accNum] = newClient;
+        clients.push_back(newClient);
     }
 
-    void* authorize(const string& accNum, const string& pass) {
-        auto it = clients.find(accNum);
-        if (it != clients.end() && it->second.password == pass) {
-            return &(it->second);
+    int authorize(const string& accNum, const string& pass) {
+        int idx = findClientIndex(accNum);
+        if (idx != -1 && clients[idx].password == pass) {
+            return idx;
         }
-        return nullptr;
+        return -1;
     }
 
-    void showAvailableDeposits(void* clientPtr) const {
-        if (!clientPtr) return;
-        Client* client = (Client*)clientPtr;
-        double balance = client->salaryBalance;
+    string getClientName(int idx) const {
+        if (idx < 0 || idx >= (int)clients.size()) return "";
+        return clients[idx].fullName;
+    }
+
+    void showAvailableDeposits(int idx) const {
+        if (idx < 0 || idx >= (int)clients.size()) return;
+        double balance = clients[idx].salaryBalance;
         cout << "\nAvailable deposits based on your balance (" << balance << " RUB):\n";
 
         int termsMonths[] = { 3, 6, 12, 24, 36 };
-        int termsYears[] = { 1, 1, 1, 2, 3 };
+        string termsStr[] = { "3 months", "6 months", "1 year", "2 years", "3 years" };
 
         for (int i = 0; i < 5; i++) {
-            int months = termsMonths[i];
-            int years = termsYears[i];
-            double rate = getRateByAmountAndTerm(balance, years);
-            cout << "  - " << months << " months (" << years << " year(s)) : " << rate << "% per annum\n";
+            double rate = getRate(balance, termsMonths[i]);
+            cout << "  - " << termsStr[i] << " : " << rate << "% per annum\n";
         }
         cout << endl;
     }
 
-    bool hasOpenDeposit(void* clientPtr) const {
-        if (!clientPtr) return false;
-        Client* client = (Client*)clientPtr;
-        return client->deposit.getIsOpen();
+    bool hasOpenDeposit(int idx) const {
+        if (idx < 0 || idx >= (int)clients.size()) return false;
+        return clients[idx].deposit.getIsOpen();
     }
 
-    bool openDeposit(void* clientPtr, double amount, int termMonths) {
-        if (!clientPtr) return false;
-        Client* client = (Client*)clientPtr;
-        if (client->deposit.getIsOpen()) {
+    bool openDeposit(int idx, double amount, int termMonths) {
+        if (idx < 0 || idx >= (int)clients.size()) return false;
+        Client& client = clients[idx];
+
+        if (client.deposit.getIsOpen()) {
             cout << "Error: you already have an open deposit!\n";
             return false;
         }
@@ -168,28 +205,23 @@ public:
             cout << "Error: deposit amount must be positive.\n";
             return false;
         }
-        if (amount > client->salaryBalance) {
+        if (amount > client.salaryBalance) {
             cout << "Error: insufficient funds on salary account.\n";
             return false;
         }
 
-        int years = termMonths / 12;
-        if (termMonths == 3 || termMonths == 6) years = 1;
-        if (termMonths == 24) years = 2;
-        if (termMonths == 36) years = 3;
-        double rate = getRateByAmountAndTerm(amount, years);
+        double rate = getRate(amount, termMonths);
 
-        client->salaryBalance -= amount;
-        client->deposit.openDeposit(amount, termMonths, rate);
+        client.salaryBalance -= amount;
+        client.deposit.openDeposit(amount, termMonths, rate);
         cout << "Deposit opened successfully! Amount: " << amount << " RUB, term: "
             << termMonths << " months, rate: " << rate << "%\n";
         return true;
     }
 
-    void showDepositState(void* clientPtr) const {
-        if (!clientPtr) return;
-        Client* client = (Client*)clientPtr;
-        const Deposit& d = client->deposit;
+    void showDepositState(int idx) const {
+        if (idx < 0 || idx >= (int)clients.size()) return;
+        const Deposit& d = clients[idx].deposit;
         if (!d.getIsOpen()) {
             cout << "No active deposit.\n";
             return;
@@ -203,10 +235,10 @@ public:
         cout << "Total amount (with interest): " << d.getTotalAmount() << " RUB\n";
     }
 
-    bool withdrawInterest(void* clientPtr) {
-        if (!clientPtr) return false;
-        Client* client = (Client*)clientPtr;
-        Deposit& d = client->deposit;
+    bool withdrawInterest(int idx) {
+        if (idx < 0 || idx >= (int)clients.size()) return false;
+        Client& client = clients[idx];
+        Deposit& d = client.deposit;
         if (!d.getIsOpen()) {
             cout << "Error: no open deposit.\n";
             return false;
@@ -216,7 +248,7 @@ public:
             cout << "No interest accrued yet.\n";
             return false;
         }
-        client->salaryBalance += interest;
+        client.salaryBalance += interest;
 
         double startAmount = d.getStartAmount();
         int term = d.getTermMonths();
@@ -227,10 +259,10 @@ public:
         return true;
     }
 
-    bool closeDeposit(void* clientPtr) {
-        if (!clientPtr) return false;
-        Client* client = (Client*)clientPtr;
-        Deposit& d = client->deposit;
+    bool closeDeposit(int idx) {
+        if (idx < 0 || idx >= (int)clients.size()) return false;
+        Client& client = clients[idx];
+        Deposit& d = client.deposit;
         if (!d.getIsOpen()) {
             cout << "Error: no open deposit to close.\n";
             return false;
@@ -240,15 +272,9 @@ public:
             return false;
         }
         double total = d.closeDeposit();
-        client->salaryBalance += total;
+        client.salaryBalance += total;
         cout << "Deposit closed. " << total << " RUB transferred to salary account.\n";
         return true;
-    }
-
-    string getClientName(void* clientPtr) const {
-        if (!clientPtr) return "";
-        Client* client = (Client*)clientPtr;
-        return client->fullName;
     }
 };
 
@@ -266,11 +292,13 @@ int main() {
     cout << "Enter password: ";
     cin >> pass;
 
-    void* currentClient = center.authorize(accNum, pass);
-    if (!currentClient) {
+    int currentClient = center.authorize(accNum, pass);
+    if (currentClient == -1) {
         cout << "Authorization failed. Wrong account or password.\n";
         return 1;
     }
+
+    cout << "\nWelcome, " << center.getClientName(currentClient) << "!\n";
 
     int choice;
     do {
