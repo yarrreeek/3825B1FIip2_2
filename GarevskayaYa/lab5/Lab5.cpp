@@ -79,6 +79,10 @@ public:
     int getMonthsPassed() const { return monthsPassed; }
     double getInterestRate() const { return interestRate; }
     double getStartAmount() const { return startAmount; }
+    
+    void resetMonthsPassed() {
+        monthsPassed = 0;
+    }
 };
 
 class ProcessingCenter {
@@ -129,6 +133,10 @@ private:
             if (termMonths == 36) return 6.5;
         }
         return 5.0;
+    }
+
+    bool isValidTerm(int termMonths) const {
+        return (termMonths == 3 || termMonths == 6 || termMonths == 12 || termMonths == 24 || termMonths == 36);
     }
 
     int findClientIndex(const string& accNum) const {
@@ -195,6 +203,12 @@ public:
 
     bool openDeposit(int idx, double amount, int termMonths) {
         if (idx < 0 || idx >= (int)clients.size()) return false;
+        
+        if (!isValidTerm(termMonths)) {
+            cout << "Error: invalid term. Allowed: 3, 6, 12, 24, 36 months.\n";
+            return false;
+        }
+        
         Client& client = clients[idx];
 
         if (client.deposit.getIsOpen()) {
@@ -249,11 +263,8 @@ public:
             return false;
         }
         client.salaryBalance += interest;
-
-        double startAmount = d.getStartAmount();
-        int term = d.getTermMonths();
-        double rate = d.getInterestRate();
-        d.openDeposit(startAmount, term, rate);
+        
+        d.resetMonthsPassed();
 
         cout << "Interest withdrawn: " << interest << " RUB transferred to salary account.\n";
         return true;
@@ -333,10 +344,6 @@ int main() {
             cin >> amount;
             cout << "Enter term in months (3,6,12,24,36): ";
             cin >> term;
-            if (term != 3 && term != 6 && term != 12 && term != 24 && term != 36) {
-                cout << "Invalid term.\n";
-                break;
-            }
             center.openDeposit(currentClient, amount, term);
             break;
         }
